@@ -17,8 +17,9 @@ import {
 } from '../../store/actions/checkoutActions';
 import { connect } from 'react-redux';
 import { withRouter } from 'next/router';
-
 import Loader from '../../components/checkout/Loader';
+import { ElementsConsumer } from '@stripe/react-stripe-js';
+import StripeCardElement from '../../components/checkout/common/StripeCardElement';
 
 class CheckoutPage extends Component {
   constructor(props) {
@@ -260,7 +261,43 @@ class CheckoutPage extends Component {
       }
     }
 
+    // if Stripe gateway selected add necessary card data
+    // for the order to be completed.
+    if (this.state.selectedGateway === 'stripe') {
+      newOrder.payment.card = {
+        number: this.state.cardNumber,
+        expiry_month: this.state.expMonth,
+        expiry_year: this.state.expYear,
+        cvc: this.state.cvc,
+        postal_zip_code: this.state.billingPostalZipcode,
+      }
+    }
+
+    const { stripe, elements } = this.props;
+
+    // Reference to the payment details element
+    const paymentDetailsElement = elements.getElement(StripeCardElement);
+
+    const paymentMethodRequest = stripe.createPaymentMethod({
+      type: 'card',
+      card: paymentDetailsElement,
+    }).then((resp) => {
+      if (resp.error) {
+        console.log(resp.error);
+        return;
+      }
+      // 1. commerce.checkout.capture()
+      // 1 .then() -> send user to receipt page
+      // 1 .catch() -> stripe.handleCardAction
+
+      // 2. .then() -> handle error
+      // 2. checkout.capture -> with payment_intent_id in response
+    })
+
+    // stripe.handle
+
     // capture order
+    // Combine Stripe payment method id and use client_secret
     // set order-receipt global state
     // and redirect to confirmation page
     // or handle errors
@@ -271,6 +308,10 @@ class CheckoutPage extends Component {
       .catch(({ data: { error = {} }}) => {
         this.setState({ loading: false });
         let errorToAlert = '';
+
+        // handle stripe error
+
+
         if (error.type === 'validation') {
           console.log('error while capturing order', error.message)
 
@@ -414,6 +455,16 @@ class CheckoutPage extends Component {
                     cvc={this.state.cvc}
                     billingPostalZipcode={this.state.billingPostalZipcode}
                   />
+                  <ElementsConsumer>
+                    {({ stripe, elements }) => (
+                      <StripeCardElement
+                        stripe={stripe}
+                        elements={elements}
+                        gateways={checkout.gateways}
+                      />
+                    )
+                  }
+                  </ElementsConsumer>
 
                   {/* Billing Address */}
                   {

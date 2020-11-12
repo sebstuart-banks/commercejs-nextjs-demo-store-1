@@ -4,6 +4,13 @@ import '../style/scss/style.scss';
 import { wrapper } from '../store';
 import commerce from '../lib/commerce';
 import collections from '../lib/collections';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+
+// Call loadStripe outside of a component’s render to avoid
+// recreating the Stripe object on every render.
+// loadStripe is initialized with your real test publishable API key.
+const stripePromise = loadStripe(process.env.STRIPE_PUBLISHABLE_KEY);
 
 class MyApp extends App {
   static async getInitialProps({ Component, ctx }) {
@@ -34,7 +41,12 @@ class MyApp extends App {
 
   render() {
     const { Component, pageProps } = this.props;
-    return <Component {...pageProps} />;
+
+    return (
+      <Elements stripe={stripePromise}>
+        <Component {...pageProps} />
+      </Elements>
+    );
   }
 }
 
